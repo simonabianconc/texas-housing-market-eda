@@ -1,0 +1,850 @@
+---
+title: "An Exploratory Analysis of Four Texas Housing Markets, 2010–2014"
+author: "Simona Bianconcini"
+date: "2026-09-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This study presents an exploratory analysis of housing market activity in four Texas cities (Beaumont, Bryan–College Station, Tyler, and Wichita Falls) using monthly data from 2010 to 2014. Its main objective is to compare local housing market characteristics, examine changes over time, and identify patterns in key market indicators.
+Specifically, the analysis addresses the following research questions:
+
+1. How do property sales activity and its variability differ across the four cities? 
+2. How did sales activity evolve between 2010 and 2014, and what seasonal patterns can be observed? 
+3. How do median sale prices and total transaction values differ across cities, and how did prices change over time? 
+4. How do housing supply conditions, measured through active listings and months of inventory, differ across cities and change over time?
+
+To address these questions, the study uses descriptive statistics and data visualization to examine differences across cities, temporal trends, and patterns across housing market indicators. The analysis focuses on describing observed patterns rather than establishing causal relationships or predicting future market conditions.
+The findings provide a comparative overview of the four local housing markets during the period examined. By highlighting differences in sales activity, seasonal fluctuations, price levels, transaction values, and housing supply conditions, the study offers a descriptive foundation for understanding local housing market dynamics and identifying areas for further investigation.
+
+
+## 1. Dataset Description
+
+The analysis uses a dataset named realestate_texas.csv, containing monthly housing market observations for four Texas cities: Beaumont, Bryan–College Station, Tyler, and Wichita Falls, from January 2010 to December 2014.  The dataset is used for educational and exploratory analysis purposes.
+Each observation represents a specific city and month. The dataset includes eight variables:
+
+- **city:** identifies the city associated with each observation; a nominal categorical variable.
+
+- **year:** indicates the calendar year, from 2010 to 2014; a numerical time variable that can also be treated as an ordered category for annual comparisons.
+
+- **month:** identifies the calendar month, from 1 (January) to 12 (December); a numerical representation of a cyclical time variable.
+
+- **sales:** number of properties sold during the month; a discrete quantitative variable.
+
+- **volume:** total monetary value of property sales during the month, expressed in millions of US dollars; a continuous quantitative variable.
+
+- **median_price:** median sale price of properties sold during the month, expressed in US dollars; a continuous quantitative variable.
+
+- **listings:** number of active property listings; a discrete quantitative variable.
+
+- **months_inventory:** estimated number of months required to sell the available housing inventory at the prevailing sales pace; a continuous quantitative variable.
+
+A preview of the dataset and a summary of its structure are presented below.
+
+
+```{r dataset, message=FALSE, echo=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+# Import the dataset
+dati <- read.csv("realestate_texas.csv", sep = ",")
+
+# Create the table
+tabella <- knitr::kable(
+  head(dati, 5),
+  format = "html",
+  caption = "Preview of the First Five Dataset Observations",
+  row.names = FALSE
+)
+
+# Apply table styling
+tabella <- kableExtra::kable_styling(
+  tabella,
+  bootstrap_options = c("striped", "condensed"),
+  full_width = FALSE,
+  position = "center"
+)
+
+# Apply header styling
+tabella <- kableExtra::row_spec(
+  tabella,
+  0,
+  background = "#2F5548",
+  color = "white",
+  bold = TRUE
+)
+
+# Display the table
+tabella
+
+
+```
+
+
+
+
+
+
+```{r strdati, echo=FALSE}
+
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+data_structure <- data.frame(
+  Variable = names(dati),
+  `Data Type` = sapply(dati, function(x) {
+    if (is.character(x)) "Categorical (text)"
+    else if (is.integer(x)) "Integer"
+    else if (is.numeric(x)) "Numeric"
+    else class(x)[1]
+  }),
+  `Example Value` = sapply(dati, function(x) as.character(x[1])),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+kable(
+  data_structure,
+  format = "html",
+  caption = "Table 1. Dataset Variables, Data Types, and Example Values",
+  align = c("l", "l", "l"),
+  row.names = FALSE
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(
+    0,
+    background = "#2F5548",
+    color = "white",
+    bold = TRUE
+  )
+```
+
+
+
+```{r n, echo=FALSE}
+N=dim(dati)[1] #240
+```
+
+
+
+```{r dataset_structure, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Create a summary table of the dataset structure
+dataset_info <- data.frame(
+  Characteristic = c(
+    "Total observations",
+    "Number of cities",
+    "Time period",
+    "Observations per city",
+    "Observations per year",
+    "Observations per city per year",
+    "Missing values"
+  ),
+  Value = c(
+    nrow(dati),
+    n_distinct(dati$city),
+    paste(min(dati$year), max(dati$year), sep = "–"),
+    nrow(dati) / n_distinct(dati$city),
+    nrow(dati) / n_distinct(dati$year),
+    nrow(dati) / (n_distinct(dati$city) * n_distinct(dati$year)),
+    sum(is.na(dati))
+  )
+)
+
+# Display the table
+kable(
+  dataset_info,
+  format = "html",
+  col.names = c("Dataset Characteristic", "Value"),
+  caption = "Table 2. Dataset Structure and Coverage",
+  align = c("l", "c")
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(
+    0,
+    bold = TRUE,
+    color = "white",
+    background = "#3B6F5A"
+  )
+```
+
+
+
+The dataset contains 240 monthly observations, covering four cities over a five-year period. Each city contributes 60 observations, corresponding to 12 months per year from 2010 to 2014.
+The data are balanced across cities and years, allowing consistent comparisons of housing market indicators over time. No missing values or duplicate city-year-month combinations were identified.
+This structure provides a suitable basis for descriptive comparisons, the examination of temporal patterns, and the exploration of relationships among housing market indicators.
+
+
+## 2. Exploratory Analysis
+### 2.1 Descriptive Overview
+
+
+The table below presents the summary statistics for each quantitative variable in the dataset. 
+
+
+
+```{r summary-variables, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Select quantitative variables
+variables <- c(
+  "sales",
+  "volume",
+  "median_price",
+  "listings",
+  "months_inventory"
+)
+
+variable_labels <- c(
+  "Sales",
+  "Volume ($ millions)",
+  "Median Price ($)",
+  "Listings",
+  "Months Inventory"
+)
+
+# Calculate descriptive statistics
+stats_table <- data.frame(
+  Variable = variable_labels,
+  t(sapply(dati[variables], function(x) {
+    c(
+      Mean   = mean(x, na.rm = TRUE),
+      SD     = sd(x, na.rm = TRUE),
+      Min    = min(x, na.rm = TRUE),
+      Q1     = unname(quantile(x, 0.25, na.rm = TRUE)),
+      Median = median(x, na.rm = TRUE),
+      Q3     = unname(quantile(x, 0.75, na.rm = TRUE)),
+      Max    = max(x, na.rm = TRUE),
+      IQR    = IQR(x, na.rm = TRUE),
+      CV     = sd(x, na.rm = TRUE) / mean(x, na.rm = TRUE) * 100
+    )
+  })),
+  row.names = NULL,
+  check.names = FALSE
+)
+
+# Format numeric values
+stats_table[-1] <- lapply(
+  stats_table[-1],
+  function(x) formatC(
+    x,
+    format = "f",
+    digits = 2,
+    big.mark = ","
+  )
+)
+
+# Create styled table
+kable(
+  stats_table,
+  format = "html",
+  col.names = c(
+    "Variable", "Mean", "SD", "Min", "Q1",
+    "Median", "Q3", "Max", "IQR", "CV (%)"
+  ),
+  align = c("l", rep("r", 9)),
+  escape = TRUE
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+  row_spec(
+    0,
+    bold = TRUE,
+    color = "white",
+    background = "#3B6F5A"
+  ) %>%
+  column_spec(
+    1,
+    bold = TRUE,
+    width = "160px"
+  ) %>%
+  add_header_above(
+    c("Table 3. Descriptive Statistics Across City-Month Observations (2010–2014)" = 10),
+    bold = TRUE,
+    align = "c",
+    background = "#EAF2ED",
+    color = "#2D5948",
+    font_size = 14
+  )
+
+```
+
+*Note: Statistics for Median Price are calculated from monthly median sale prices, not individual property transactions.*
+
+
+
+
+
+
+Table 3 provides an overview of the five quantitative housing market indicators across 240 monthly observations from four Texas cities. The dataset records an average of approximately 192 property sales and \$31.01 million in transaction volume per city-month observation. The mean of the monthly median sale prices is approximately \$132,665, while active listings average 1,738 properties and months of inventory averages 9.19.
+Relative dispersion differs considerably across indicators. Transaction volume has the highest coefficient of variation (53.71%), followed by active listings (43.31%) and sales (41.42%). Median sale prices exhibit the lowest relative dispersion (17.08%). These differences suggest that transaction activity varies more substantially, relative to its average level, than monthly median sale prices across the observations considered.
+However, these summary statistics combine observations from different cities and years. Consequently, the observed dispersion may reflect both structural differences between local markets and variation over time. The following sections therefore examine city-level distributions and temporal patterns to provide a more detailed understanding of these differences.
+
+
+### 2.2 Does Real Estate Sales Activity Differ Across Cities?
+
+To compare real estate sales activity across the four cities, the following chart shows the average number of properties sold per month in each year from 2010 to 2014. These averages are calculated separately for each city and year, using the 12 monthly observations available. Each line represents a city, making it possible to compare sales levels and observe how they changed over time.
+
+
+
+```{r sales-cities, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+library(dplyr)
+library(ggplot2)
+
+sales_year_city <- dati %>%
+  group_by(city, year) %>%
+  summarise(
+    mean_sales = mean(sales),
+    .groups = "drop"
+  )
+
+ggplot(sales_year_city,
+       aes(x = year, y = mean_sales, color = city, group = city)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Average Monthly Sales by City and Year",
+    x = "Year",
+    y = "Average Number of Sales",
+    color = "City"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+
+
+```
+
+
+
+
+Tyler consistently recorded the highest average monthly sales, while Wichita Falls had the lowest levels throughout the five-year period. Bryan–College Station and Beaumont fell between these two cities, with Bryan–College Station generally recording more sales than Beaumont.
+Between 2010 and 2014, sales activity increased overall in Tyler, Bryan–College Station, and Beaumont, although the changes were not always steady from one year to the next. Wichita Falls, by contrast, showed relatively little overall growth.
+These findings highlight differences in both sales activity and its evolution over time across the four cities.
+
+
+While the previous chart compares average sales across years, the following boxplots show how monthly sales were distributed within each city over the entire period. The line inside each box represents the median, or the middle value of monthly sales. The box contains the middle 50% of observations, helping us understand how much sales activity varied from month to month.
+
+
+```{r sales-boxplot, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+ggplot(dati, aes(x = city, y = sales, fill = city)) +
+  geom_boxplot(alpha = 0.7, width = 0.6) +
+  labs(
+    title = "Distribution of Monthly Sales by City",
+    x = "City",
+    y = "Monthly Sales"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(face = "bold", hjust = 0.5)
+  )
+
+```
+
+
+Tyler recorded the highest median monthly sales, while Wichita Falls had the lowest. Wichita Falls also showed a relatively narrow box, meaning that the middle 50% of its monthly sales observations fell within a smaller range.
+Beaumont and Bryan–College Station had fairly similar median sales levels, but Bryan–College Station showed a wider spread of monthly sales. This indicates greater variation across the observed months, while Beaumont's sales were more concentrated.
+Together, the two charts show that the four cities differed not only in their typical monthly sales levels, but also in how much sales activity varied during the period examined.
+
+
+### 2.3 How Does Sales Activity Change Over Time?
+
+
+The previous section compared sales activity across cities using yearly averages and monthly sales distributions. To examine how sales changed over time in greater detail, the following charts show the number of properties sold each month from 2010 to 2014, separately for each city. Unlike yearly averages, monthly data reveal short-term fluctuations and help identify periods of higher or lower sales activity.
+
+
+```{r monthly-sales-trend, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+library(dplyr)
+library(ggplot2)
+
+# Create a date variable
+dati <- dati %>%
+  mutate(date = as.Date(
+    paste(year, month, "01", sep = "-"),
+    format = "%Y-%m-%d"
+  ))
+
+# Plot monthly sales over time
+ggplot(dati, aes(x = date, y = sales)) +
+  geom_line(color = "#3B6F5A", linewidth = 0.8) +
+  facet_wrap(~ city, ncol = 2) +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  labs(
+    title = "Monthly Property Sales by City (2010–2014)",
+    x = "Year",
+    y = "Monthly Sales"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text = element_text(face = "bold")
+  )
+
+```
+
+The monthly sales patterns differ across the four cities. Tyler recorded relatively high sales throughout the period, with an overall increase toward 2014, although monthly sales fluctuated considerably. Bryan–College Station also showed an upward trend, accompanied by recurring peaks and declines in sales activity.
+Beaumont experienced moderate growth over the five years, with noticeable month-to-month fluctuations. Wichita Falls, in contrast, maintained relatively stable sales levels, without a clear upward trend.
+These patterns suggest that sales activity changed differently across the four cities. The repeated increases and decreases visible in some markets may also indicate seasonal patterns, which are examined in the following chart.
+
+The previous chart showed how monthly sales changed throughout the five-year period. To explore whether sales activity follows recurring patterns within the year, the following chart compares average sales for each calendar month, from January to December. For each city, these averages are calculated using the corresponding month across the five years from 2010 to 2014. This makes it possible to identify months that typically recorded higher or lower sales activity.
+
+```{r sales-seasonality, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+# Calculate average sales by city and month
+monthly_avg_sales <- dati %>%
+  group_by(city, month) %>%
+  summarise(
+    mean_sales = mean(sales, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Create month labels
+monthly_avg_sales <- monthly_avg_sales %>%
+  mutate(
+    month_name = factor(
+      month.abb[month],
+      levels = month.abb
+    )
+  )
+
+# Plot seasonal patterns
+ggplot(
+  monthly_avg_sales,
+  aes(x = month_name, y = mean_sales, group = city, color = city)
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  labs(
+    title = "Average Monthly Sales by City",
+    x = "Month",
+    y = "Average Number of Sales",
+    color = "City"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+The chart suggests that monthly sales followed recurring patterns in several cities. Sales were generally higher during the spring and summer months, although the timing and size of the increases differed across markets.
+Bryan–College Station showed a particularly noticeable pattern, with sales typically reaching a peak around June before declining toward late summer. Tyler also recorded higher average sales around June, while Beaumont tended to reach its highest levels later in the summer, around August. Wichita Falls showed smaller differences between months, suggesting a less pronounced seasonal pattern.
+These findings indicate that the timing of sales activity varied across the four cities. However, the patterns are descriptive and do not establish that seasonal factors directly caused the observed changes.
+
+
+### 2.4 How Do Prices and Transaction Values Differ Across Markets?
+
+While the previous sections focused on the number of property sales and their evolution over time, sales activity alone does not fully describe the economic characteristics of a housing market.
+This section examines differences in median sale prices and total transaction values across the four cities. It also explores how property prices changed between 2010 and 2014, providing a broader perspective on the development of these local real estate markets.
+
+#### 2.4.1 How Do Median Sale Prices Differ Across Cities?
+
+While the previous sections focused on the number of properties sold, this section examines differences in property prices across the four cities. The following boxplots compare monthly median sale prices from 2010 to 2014. The median sale price represents the middle price among properties sold in a given month. By comparing these monthly values, the chart helps identify differences in typical price levels and how much they varied over the five-year period.
+
+
+```{r median-price-boxplot, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+library(ggplot2)
+
+ggplot(dati, aes(x = city, y = median_price, fill = city)) +
+  geom_boxplot(
+    alpha = 0.75,
+    width = 0.6,
+    outlier.size = 2
+  ) +
+  scale_y_continuous(
+    labels = scales::label_dollar()
+  ) +
+  labs(
+    title = "Distribution of Monthly Median Sale Prices by City",
+    x = NULL,
+    y = "Median Sale Price (USD)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    ),
+    axis.text.x = element_text(
+      angle = 15,
+      hjust = 1
+    ),
+    legend.position = "none"
+  )
+```
+
+The boxplots show clear differences in median sale prices across the four cities. Bryan–College Station recorded the highest typical monthly median sale price, at approximately \$155,000, followed by Tyler at around \$142,000. Beaumont had a lower typical value, close to \$130,000, while Wichita Falls recorded the lowest, at approximately $102,000.
+These differences suggest that the typical prices of properties sold were higher in Bryan–College Station and Tyler than in Beaumont and Wichita Falls during the period examined. However, higher sale prices do not necessarily indicate a stronger or more profitable housing market, as prices may also reflect differences in property characteristics and the types of homes sold.
+
+
+### 2.4.2 Which Cities Generate the Highest Sales Volume?
+
+In addition to property prices, the total monetary value of real estate transactions provides another perspective on market activity. The following chart compares the total sales volume recorded in each city between 2010 and 2014, calculated by adding together the monthly transaction volumes over the five-year period. This measure reflects the combined value of properties sold, rather than the number of transactions or the typical price of an individual property.
+
+
+
+```{r total-sales-volume, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+library(dplyr)
+library(ggplot2)
+
+# Calculate total transaction value for each city (billion USD)
+city_volume <- dati %>%
+  group_by(city) %>%
+  summarise(
+    total_volume_billion = sum(volume) / 1000,
+    .groups = "drop"
+  )
+
+# Create horizontal bar chart
+ggplot(
+  city_volume,
+  aes(
+    x = reorder(city, total_volume_billion),
+    y = total_volume_billion
+  )
+) +
+  geom_col(
+    fill = "#3B6F5A",
+    width = 0.65
+  ) +
+  geom_text(
+    aes(label = paste0("$", sprintf("%.2f", total_volume_billion), "B")),
+    hjust = -0.15,
+    size = 4
+  ) +
+  coord_flip() +
+  scale_y_continuous(
+    labels = function(x) paste0("$", sprintf("%.1f", x), "B"),
+    expand = expansion(mult = c(0, 0.18))
+  ) +
+  labs(
+    title = "Total Real Estate Sales Volume by City (2010–2014)",
+    x = NULL,
+    y = "Total Sales Volume (Billion USD)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+```
+
+
+Tyler recorded the highest total sales volume over the five-year period, at approximately \$2.75 billion, followed by Bryan–College Station at \$2.29 billion. Beaumont recorded around \$ 1.57 billion, while Wichita Falls had the lowest total, at approximately $0.84 billion.
+Although Bryan–College Station had the highest typical monthly median sale price, Tyler recorded the greatest overall transaction value. This highlights an important distinction: total sales volume depends on both the number of properties sold and their transaction prices. A city with more property sales can therefore record a higher total sales volume even when its typical sale prices are lower.
+Overall, these results highlight differences in the total value of real estate transactions across the four cities during the period examined.
+
+
+#### 2.4.3 How Have Median Sale Prices Changed Over Time?
+
+To examine how property prices evolved between 2010 and 2014, the following boxplots compare the distribution of monthly median sale prices within each city and year.
+Each boxplot summarizes 12 monthly observations, showing the median, the middle 50% of values, and any unusually high or low monthly observations. This allows us to examine both changes in typical price levels and differences in monthly variation over time.
+
+```{r median sales price boxplot, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+ggplot(
+  dati,
+  aes(x = factor(year), y = median_price)
+) +
+  geom_boxplot(
+    fill = "steelblue",
+    alpha = 0.65,
+    width = 0.65,
+    outlier.color = "firebrick"
+  ) +
+  facet_wrap(~ city, ncol = 2) +
+  scale_y_continuous(
+    labels = scales::label_dollar()
+  ) +
+  labs(
+    title = "Monthly Median Sale Price Distribution by City and Year",
+    x = "Year",
+    y = "Monthly Median Sale Price (USD)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+
+```
+The boxplots reveal different patterns in monthly median sale prices across the four cities.
+Bryan–College Station maintained the highest price levels overall, with a noticeable upward shift in 2013 and 2014. Tyler also showed an increase in typical monthly median sale prices, although the change appeared more gradual over the five-year period.
+Beaumont displayed comparatively limited changes in its central price levels, despite some unusually high or low monthly observations. Wichita Falls consistently recorded the lowest price levels, with some variation in the spread of monthly median prices across years.
+Overall, the distributions suggest that price levels increased in Bryan–College Station and Tyler, while changes were less pronounced in Beaumont and Wichita Falls. These observations describe changes in monthly market-level price indicators, rather than changes in the value of individual properties.
+
+To summarize price changes between 2010 and 2014, the percentage change was calculated for each city using the average of its 12 monthly median sale prices in each year.
+This measure provides a simple comparison of how price levels changed over the five-year period. It differs from the median shown inside each boxplot, which represents the middle value of the monthly observations.
+
+```{r table variation, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+# Calculate annual averages of monthly median sale prices
+annual_prices <- dati %>%
+  group_by(city, year) %>%
+  summarise(
+    avg_median_price = mean(median_price),
+    .groups = "drop"
+  )
+
+# Calculate percentage changes between 2010 and 2014
+price_growth <- annual_prices %>%
+  group_by(city) %>%
+  summarise(
+    price_2010 = avg_median_price[year == 2010],
+    price_2014 = avg_median_price[year == 2014],
+    growth_pct = (price_2014 / price_2010 - 1) * 100,
+    .groups = "drop"
+  )
+
+# Display the formatted table
+price_growth %>%
+  arrange(desc(growth_pct)) %>%
+  mutate(
+    growth_pct = sprintf("%+.2f%%", growth_pct)
+  ) %>%
+  select(
+    City = city,
+    `Price Change (2010–2014)` = growth_pct
+  ) %>%
+  knitr::kable(
+    format = "html",
+    caption = "Table 4. Percentage Change in Annual Average Monthly Median Sale Prices (2010–2014)",
+    align = c("l", "r")
+  ) %>%
+  kableExtra::kable_styling(
+    bootstrap_options = c("striped", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  kableExtra::row_spec(
+    0,
+    background = "#2F5548",
+    color = "white",
+    bold = TRUE
+  ) %>%
+  kableExtra::row_spec(
+    c(2, 4),
+    background = "#F1F5F2"
+  )
+
+```
+
+
+Tyler recorded the largest increase in annual average monthly median sale prices (+11.3%), followed by Bryan–College Station (+10.4%) and Wichita Falls (+6.8%). Beaumont showed a slight decrease (−0.7%).
+These results are broadly consistent with the patterns observed in the boxplots, while providing a numerical summary of the changes between the first and last years. The figures are based on nominal prices and should not be interpreted as inflation-adjusted changes or appreciation of individual properties.
+
+
+### 2.5 How Do Housing Supply Conditions Differ Across Cities?
+
+
+After examining differences in sales activity, property prices, and transaction values across the four cities, this section focuses on housing supply conditions.
+Two indicators are considered: active listings, which represent properties available for sale, and months of inventory, which estimates how long the available housing supply would last at the prevailing pace of sales.
+The analysis first compares active listings with monthly sales to explore how these indicators vary within each market. It then examines changes in active listings and months of inventory between 2010 and 2014, providing complementary perspectives on housing supply conditions across the four cities.
+
+
+#### 2.5.1 Active Listings and Monthly Sales
+
+
+Active listings indicate the number of properties available for sale in a given month, while monthly sales represent the number of properties sold during that period.
+The following scatterplots compare these two indicators across the four cities. Each point represents one month between 2010 and 2014, allowing us to examine how the number of available properties and completed sales varied together within each market.
+
+
+```{r listings-sales, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+library(ggplot2)
+
+ggplot(dati, aes(x = listings, y = sales)) +
+  geom_point(alpha = 0.6, color = "steelblue") +
+  facet_wrap(~ city, scales = "free_x") +
+  labs(
+    title = "Active Listings and Monthly Sales by City (2010–2014)",
+    x = "Active Listings",
+    y = "Monthly Property Sales"
+  ) +
+  theme_minimal()
+
+```
+
+
+The scatterplots highlight differences in housing market activity across the four cities. Tyler generally recorded higher numbers of active listings and monthly sales, while Wichita Falls showed lower levels of both indicators.
+Beaumont displayed a relatively narrow range of active listings, whereas Bryan–College Station showed substantial variation in monthly sales even at similar levels of housing availability.
+Overall, no clear and consistent visual relationship between active listings and monthly sales emerges across the four cities. This indicates that the number of available properties alone does not fully describe differences in monthly sales activity.
+
+
+#### 2.5.2 Active Listings Over Time
+
+Active listings provide a measure of the number of properties available for sale in each market. Examining their evolution over time helps identify whether the available housing supply increased, decreased, or remained relatively stable.
+The following chart presents the annual average number of active listings for each city between 2010 and 2014. Each annual value is calculated from the 12 monthly observations.
+
+
+```{r Active-Listings-Over-Time, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+listings_year_city <- dati %>%
+  group_by(city, year) %>%
+  summarise(
+    mean_listings = mean(listings),
+    .groups = "drop"
+  )
+
+ggplot(
+  listings_year_city,
+  aes(
+    x = year,
+    y = mean_listings,
+    color = city,
+    group = city
+  )
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  scale_x_continuous(breaks = 2010:2014) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Average Active Listings by City and Year",
+    x = "Year",
+    y = "Average Active Listings",
+    color = "City"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+
+```
+
+
+Average active listings declined between 2010 and 2014 in all four cities, although the extent of the decline differed across markets.
+Tyler consistently recorded the highest number of active listings, with a gradual decrease over the period. Beaumont also experienced a moderate decline, particularly after 2011.
+Bryan–College Station showed a more pronounced reduction, especially between 2012 and 2014. In contrast, Wichita Falls maintained a relatively stable number of active listings, with only a small overall decrease.
+These findings highlight differences in how the available housing supply evolved across the four markets. However, changes in active listings alone do not explain the underlying reasons for these patterns.
+
+
+
+#### 2.5.3 Months of Inventory Over Time
+
+Months of inventory estimates how long it would take to sell the available housing supply if properties continued to sell at the current pace and no new listings were added. Lower values indicate less available supply relative to the pace of sales, while higher values indicate more available supply relative to sales activity.
+The following chart shows how months of inventory changed across the four cities between 2010 and 2014, allowing us to compare housing supply conditions over time.
+
+
+```{r motnhs-inventory, echo=FALSE, message=FALSE, warning=FALSE, fig.align='center'}
+
+inventory_year_city <- dati %>%
+  group_by(city, year) %>%
+  summarise(
+    mean_inventory = mean(months_inventory),
+    .groups = "drop"
+  )
+
+ggplot(
+  inventory_year_city,
+  aes(x = year, y = mean_inventory, color = city, group = city)
+) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2.5) +
+  scale_x_continuous(breaks = 2010:2014) +
+  labs(
+    title = "Average Months of Inventory by City and Year",
+    x = "Year",
+    y = "Average Months of Inventory",
+    color = "City"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(
+      face = "bold",
+      hjust = 0.5
+    )
+  )
+```
+
+Average months of inventory declined between 2010 and 2014 in all four cities, although the magnitude of the decline varied considerably.
+Bryan–College Station experienced the largest decrease, falling from approximately 8.7 months in 2010 to 4.4 months in 2014. As shown in Section 2.5.2, this decline occurred alongside a substantial reduction in active listings, particularly after 2012.
+Beaumont and Tyler also recorded notable declines in months of inventory, accompanied by reductions in active listings over the same period. Tyler nevertheless maintained the highest average months of inventory throughout the five years.
+Wichita Falls showed relatively little overall change in either indicator, with smaller variations compared with the other three cities.
+Taken together, the two charts provide complementary perspectives on housing supply conditions. Active listings describe the number of properties available for sale, while months of inventory measures that supply relative to the prevailing pace of sales. Therefore, the decline in months of inventory cannot be attributed to changes in active listings alone.
+
+
+## 3. Key Findings
+
+The exploratory analysis reveals several differences in housing market activity, price levels, and supply conditions across the four Texas cities between 2010 and 2014.
+
+**Sales activity and market size.** Tyler consistently recorded the highest monthly sales activity and the largest total transaction value over the five-year period, approximately $2.75 billion. Wichita Falls had the lowest sales activity and transaction volume. These findings highlight substantial differences in the scale of the four local housing markets.
+
+**Sales trends and seasonality.** Monthly sales generally increased between 2010 and 2014 in Tyler, Bryan–College Station, and Beaumont, while Wichita Falls remained relatively stable. Sales also tended to be higher during spring and summer, although the timing and magnitude of these seasonal patterns differed across cities.
+
+**Price levels and changes over time.** Bryan–College Station recorded the highest typical monthly median sale prices, despite Tyler having the largest overall transaction volume. Between 2010 and 2014, the annual average of monthly median sale prices increased most in Tyler (+11.3%) and Bryan–College Station (+10.4%). Wichita Falls recorded a smaller increase (+6.8%), while Beaumont showed a slight decrease (−0.7%). These figures describe changes in market-level price indicators rather than appreciation of individual properties.
+
+**Housing supply conditions.** Average active listings and months of inventory declined across all four cities, although the changes varied in magnitude. Bryan–College Station experienced a particularly pronounced reduction in months of inventory, from approximately 8.7 months in 2010 to 4.4 months in 2014. Tyler maintained comparatively high inventory levels, while Wichita Falls showed relatively limited changes in both supply indicators.
+
+Taken together, these findings show that the four housing markets followed different patterns during the period examined. Higher sales activity did not necessarily coincide with higher typical sale prices, and changes in housing supply conditions were not uniform across cities. These differences highlight the importance of examining multiple indicators when comparing local housing markets, rather than relying on a single measure of market performance.
+
+
+
+## 4. Limitations
+
+Although this analysis provides a comparative overview of housing market conditions in four Texas cities between 2010 and 2014, several limitations should be considered when interpreting the findings.
+First, the dataset covers only four cities over a five-year period. The observed patterns therefore reflect these specific local markets and cannot necessarily be generalized to other Texas cities or to more recent housing market conditions.
+Second, the data are aggregated at the monthly level rather than recorded for individual property transactions. In particular, median sale prices represent monthly market-level indicators, not the prices of individual homes. As a result, changes in these indicators cannot be interpreted as changes in the value of the same properties over time.
+Third, the dataset does not include information about property characteristics, such as size, location within each city, age, or condition. Differences in median sale prices may therefore partly reflect differences in the types of properties sold, rather than changes in underlying property values. In addition, the analysis uses nominal prices and does not adjust for inflation.
+Finally, the study is descriptive and exploratory. The charts and summary statistics identify differences, trends, and patterns in the observed data, but they do not establish causal relationships. For example, changes in active listings and months of inventory may occur together, but this analysis does not determine the factors responsible for those changes.
+These limitations do not invalidate the descriptive findings, but they define how the results should be interpreted. The analysis is best understood as a historical comparison of the four housing markets rather than a comprehensive assessment of market performance or an explanation of the factors driving observed changes.
+
+
+## 5. Conclusion
+
+This exploratory analysis examined housing market activity in Beaumont, Bryan–College Station, Tyler, and Wichita Falls between 2010 and 2014, focusing on sales activity, median sale prices, transaction values, and housing supply conditions.
+The findings reveal meaningful differences across the four local markets. Tyler recorded the highest overall sales activity and transaction volume, while Bryan–College Station generally had the highest monthly median sale prices. Sales patterns also varied over time, with seasonal fluctuations visible across the cities but differing in timing and intensity. In addition, declining active listings and months of inventory suggest that housing supply conditions changed during the period, although the extent of these changes differed across markets.
+A central finding is that no single indicator provides a complete picture of housing market conditions. Sales activity, price levels, transaction values, and housing supply measures capture different aspects of each market and are most informative when considered together.
+While the analysis is limited by its historical scope and aggregated data, it provides a structured descriptive comparison of the four cities. Further research using more recent data and property-level information could help investigate the factors underlying the observed differences and trends.
+
+
+
+
