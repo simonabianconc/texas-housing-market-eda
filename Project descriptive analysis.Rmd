@@ -60,7 +60,8 @@ library(knitr)
 library(kableExtra)
 library(ggplot2)
 # Import the dataset
-dati <- read.csv("realestate_texas.csv", sep = ",")
+#dati <- read.csv("realestate_texas.csv", sep = ",")
+dati <- read.csv("data/realestate_texas.csv", sep = ",")
 
 # Create the table
 tabella <- knitr::kable(
