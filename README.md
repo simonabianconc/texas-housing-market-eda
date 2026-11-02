@@ -1,6 +1,6 @@
 # Texas Housing Market Exploratory Data Analysis (2010–2014)
 
-**[View the Full Interactive Report](https://simonabianconc.github.io/texas-housing-market-eda/Project-descriptive-analysis.html)**
+**[View the Full Analysis Report](https://simonabianconc.github.io/texas-housing-market-eda/Project-descriptive-analysis.html)**
 
 Explore the complete analysis, including descriptive statistics, visualizations, key findings, and conclusions.
 
