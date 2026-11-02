@@ -1,5 +1,9 @@
 # Texas Housing Market Exploratory Data Analysis (2010–2014)
 
+**[View the Full Interactive Report](https://simonabianconc.github.io/texas-housing-market-eda/Project-descriptive-analysis.html)**
+
+Explore the complete analysis, including descriptive statistics, visualizations, key findings, and conclusions.
+
 ## Project Overview
 
 This project presents an exploratory data analysis (EDA) of residential housing market activity in four Texas cities: **Beaumont, Bryan–College Station, Tyler, and Wichita Falls**, using monthly observations from 2010 to 2014.
